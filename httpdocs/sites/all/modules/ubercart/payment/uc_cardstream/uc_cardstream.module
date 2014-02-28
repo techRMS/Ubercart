@@ -1,0 +1,202 @@
+<?php
+	/**
+	 * Implementation of hook_menu().
+	 * } */
+
+	function uc_cardstream_menu() {
+		$items = array();
+
+		$items['cart/cardstream/complete'] = array(
+			'title'           => 'Order complete',
+			'page callback'   => 'uc_cardstream_complete',
+			'access callback' => 'uc_cardstream_completion_access',
+			'type'            => MENU_CALLBACK,
+			'file'            => 'uc_cardstream.pages.inc',
+		);
+
+		$items['cart/cardstream/completed'] = array(
+			'title'           => 'Order Completed',
+			'page callback'   => 'uc_cardstream_completed',
+			'access callback' => 'uc_cardstream_completion_access',
+			'type'            => MENU_CALLBACK,
+			'file'            => 'uc_cardstream.pages.inc',
+		);
+
+		return $items;
+	}
+
+	/**
+	 * Implementation of hook_init().
+	 */
+	function uc_cardstream_init() {
+		global $conf;
+		$conf['i18n_variables'][] = 'uc_cardstream_method_title';
+		$conf['i18n_variables'][] = 'uc_cardstream_checkout_button';
+	}
+
+	/**
+	 * Make sure anyone can complete their cardstream orders.
+	 */
+	function uc_cardstream_completion_access() {
+		return true;
+	}
+
+	/**
+	 * Implementation of hook_ucga_display().
+	 */
+
+	function uc_cardstream_ucga_display() {
+		// Tell UC Google Analytics to display the e-commerce JS on the custom
+		// order completion page for this module.
+		if ( arg( 0 ) == 'cart' && arg( 1 ) == 'cardstream' && arg( 2 ) == 'complete' ) {
+			return true;
+		}
+	}
+
+	/**
+	 * Implementation of hook_form_alter().
+	 */
+	function uc_cardstream_form_alter( &$form, $form_state, $form_id ) {
+		if ( $form_id == 'uc_cart_checkout_review_form' && ( $order_id = intval( $_SESSION['cart_order'] ) ) > 0 ) {
+			$order = uc_order_load( $order_id );
+
+			if ( $order->payment_method == 'cardstream' ) {
+				drupal_add_css( drupal_get_path( 'module', 'uc_cardstream' ) . '/uc_cardstream.css' );
+				unset( $form['submit'] );
+				$form['#prefix'] = '<table id="two-checkout-review-table"><tr><td>';
+				$form['#suffix'] = '</td><td>' . drupal_get_form( 'uc_cardstream_form', $order ) . '</td></tr></table>';
+			}
+		}
+	}
+
+	/**
+	 * Implementation of hook_payment_method().
+	 *
+	 * @see uc_payment_method_cardstream()
+	}*/
+	function uc_cardstream_payment_method() {
+		$path  = base_path() . drupal_get_path( 'module', 'uc_cardstream' );
+		$title = variable_get( 'uc_cardstream_method_title', t( 'cardstream' ) );
+
+		$methods[] = array(
+			'id'         => 'cardstream',
+			'name'       => t( 'cardstream' ),
+			'title'      => $title,
+			'review'     => t( 'Credit card' ),
+			'desc'       => t( 'Redirect to cardstream to pay by credit card' ),
+			'callback'   => 'uc_payment_method_cardstream',
+			'weight'     => 3,
+			'checkout'   => true,
+			'no_gateway' => true,
+		);
+
+		return $methods;
+
+	}
+
+
+	/**
+	 * Add cardstream settings to the payment method settings form.
+	 *
+	 * @see uc_cardstream_payment_method()
+	 */
+
+	function uc_payment_method_cardstream( $op, &$arg1 ) {
+		switch ( $op ) {
+			case 'settings':
+				$form['uc_cardstream_merchantid']   = array(
+					'#type'          => 'textfield',
+					'#title'         => t( 'Merchant ID' ),
+					'#description'   => t( 'Your Merchant ID' ),
+					'#default_value' => variable_get( 'uc_cardstream_merchantid', '' ),
+					'#size'          => 16,
+				);
+				$form['uc_cardstream_secret']       = array(
+					'#type'          => 'textfield',
+					'#title'         => t( 'Pre Shared Key' ),
+					'#description'   => t( 'Your Pre Shared Key for signatures' ),
+					'#default_value' => variable_get( 'uc_cardstream_secret', '' ),
+					'#size'          => 16,
+				);
+				$form['uc_cardstream_currencycode'] = array(
+					'#type'          => 'textfield',
+					'#title'         => t( 'Currency Code' ),
+					'#description'   => t( 'Your Currency Code' ),
+					'#default_value' => variable_get( 'uc_cardstream_currencycode', '' ),
+					'#size'          => 16,
+				);
+
+				$form['uc_cardstream_countrycode'] = array(
+					'#type'          => 'textfield',
+					'#title'         => t( 'Country Code' ),
+					'#description'   => t( 'Your Country Code' ),
+					'#default_value' => variable_get( 'uc_cardstream_countrycode', '' ),
+					'#size'          => 16,
+				);
+
+				$form['uc_cardstream_method_title'] = array(
+					'#type'          => 'textfield',
+					'#title'         => t( 'Front End Name' ),
+					'#description'   => t( 'Module name as it appears to the customer' ),
+					'#default_value' => variable_get( 'uc_cardstream_method_title', '' ),
+					'#size'          => 16,
+				);
+
+				return $form;
+		}
+	}
+
+	function uc_cardstream_form( $form_state, $order ) {
+
+		$context = array(
+			'revision' => 'formatted-original',
+			'type'     => 'order_total',
+			'subject'  => array(
+				'order' => $order,
+			),
+		);
+
+		$options = array(
+			'sign' => false,
+			'dec'  => '.',
+			'thou' => false,
+		);
+		//var_dump( $order );
+		$data = array(
+			'merchantID'        => variable_get( 'uc_cardstream_merchantid', '100001' ),
+			'amount'            => str_replace( ".", "", uc_price( $order->order_total, $context, $options ) ),
+			'countryCode'       => variable_get( 'uc_cardstream_countrycode', '826' ),
+			'currencyCode'      => variable_get( 'uc_cardstream_currencycode', '826' ),
+			'transactionUnique' => $order->order_id . '-' . time(),
+			'orderRef'          => $order->order_id,
+			'redirectURL'       => url( 'cart/cardstream/complete', array( 'absolute' => true ) ),
+			'customerName'      => $order->billing_first_name . ' ' . $order->billing_last_name,
+			'customerPhone'     => $order->billing_phone,
+			'customerEmail'     => $order->primary_email,
+			'customerAddress'   => implode( "\n", array(
+													   $order->billing_street1,
+													   $order->billing_street2,
+													   $order->billing_city
+												  ) ),
+			'customerPostcode'  => $order->billing_postal_code
+		);
+
+		ksort( $data );
+		$data['signature'] = hash( 'SHA512', http_build_query( $data, '', '&' ) . variable_get( 'uc_cardstream_secret', 'Circle4Take40Idea' ) ) . '|' . implode( ',', array_keys( $data ) );
+
+		$form['#action'] = "https://gateway.cardstream.com/hosted/";
+
+		foreach ( $data as $name => $value ) {
+			$form[$name] = array(
+				'#type'  => 'hidden',
+				'#value' => $value
+			);
+		}
+
+		$form['submit'] = array(
+			'#type'  => 'submit',
+			'#value' => variable_get( 'uc_cardstream_checkout_button', t( 'Submit Order' ) ),
+		);
+
+		return $form;
+	}
