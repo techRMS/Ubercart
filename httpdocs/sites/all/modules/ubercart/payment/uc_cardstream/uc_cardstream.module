@@ -74,17 +74,18 @@
 	 *
 	 * @see uc_payment_method_cardstream()
 	}*/
-	function uc_cardstream_payment_method() {
+	function uc_cardstream_uc_payment_method() {
 		$path  = base_path() . drupal_get_path( 'module', 'uc_cardstream' );
 		$title = variable_get( 'uc_cardstream_method_title', t( 'cardstream' ) );
 
-		$methods[] = array(
-			'id'         => 'cardstream',
-			'name'       => t( 'cardstream' ),
+		$methods['Cardstream'] = array(
+			//'id'         => 'cardstream',
+			'name'       => t( 'Cardstream' ),
 			'title'      => $title,
 			'review'     => t( 'Credit card' ),
 			'desc'       => t( 'Redirect to cardstream to pay by credit card' ),
 			'callback'   => 'uc_payment_method_cardstream',
+			'redirect'   => 'uc_cardstream_form',
 			'weight'     => 3,
 			'checkout'   => true,
 			'no_gateway' => true,
@@ -95,13 +96,15 @@
 	}
 
 
+
+
 	/**
 	 * Add cardstream settings to the payment method settings form.
 	 *
 	 * @see uc_cardstream_payment_method()
 	 */
 
-	function uc_payment_method_cardstream( $op, &$arg1 ) {
+	function uc_payment_method_cardstream( $op, &$order, $form = NULL, &$form_state = NULL ) {
 		switch ( $op ) {
 			case 'settings':
 				$form['uc_cardstream_merchantid']   = array(
@@ -146,7 +149,7 @@
 		}
 	}
 
-	function uc_cardstream_form( $form_state, $order ) {
+	function uc_cardstream_form($form, $form_state, $order ) {
 
 		$context = array(
 			'revision' => 'formatted-original',
@@ -164,7 +167,7 @@
 		//var_dump( $order );
 		$data = array(
 			'merchantID'        => variable_get( 'uc_cardstream_merchantid', '100001' ),
-			'amount'            => str_replace( ".", "", uc_price( $order->order_total, $context, $options ) ),
+			'amount'            => uc_currency_format( $order->order_total, false, false, '.' )*100,//str_replace( ".", "", uc_price( $order->order_total, $context, $options ) ),
 			'countryCode'       => variable_get( 'uc_cardstream_countrycode', '826' ),
 			'currencyCode'      => variable_get( 'uc_cardstream_currencycode', '826' ),
 			'transactionUnique' => $order->order_id . '-' . time(),
