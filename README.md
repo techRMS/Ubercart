@@ -1,3 +1,8 @@
+Compatibility
+========
+
+Compatible with Version 3.6. 
+
 ubercart
 ========
 
@@ -7,12 +12,8 @@ Copy the contents of the httpdocs directory to your root Ubercart folder
 
 **Step 2:**
 
-Navigate to Administer > Store administration > Configuration > Payment settings >
-Edit > Payment methods and check the Cardstream “enabled” checkbox. Finally,
-click Save configuration.
+Navigate to Administrator > Modules. Scroll down the list until you reach 'Ubercart - Payment'. Select Cardstream from the list and click Save Configuration at the bottom. 
 
 **Step 3:**
 
-Once you have clicked “save configuration” you will be returned to the same
-page. From this page you can click “Cardstream settings” to drop down the
-module settings form.
+Navigate to Administrator > Store > Configuration > Payment Methods. Check Cardstream from the list and click edit to enter your Merchant ID, Signature, etc. Click Save Configuration.
