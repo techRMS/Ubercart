@@ -1,4 +1,4 @@
-<?
+<?php
 	function uc_cardstream_completed(){
 		if($_SESSION['cardstreamoutput']){
 			$output = $_SESSION['cardstreamoutput'];
